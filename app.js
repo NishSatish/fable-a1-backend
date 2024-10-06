@@ -3,6 +3,7 @@ import { getStorage, ref, uploadString } from 'firebase/storage'
 import express from 'express';
 import dotenv from 'dotenv'
 import {createBlobAndUpload} from "./util/createBlobAndUpload.js";
+import {flushBufferToBlob} from "./cron/flushBufferToBlob.js";
 dotenv.config();
 
 // FIREBASE CONFIG
@@ -11,7 +12,6 @@ const firebaseConfig = {
 }
 const fb = initializeApp(firebaseConfig);
 const storage = getStorage(fb);
-const fbRef = ref(storage, `blobs/new_${Date.now().toString()}_${Math.random()}.txt`)
 
 // MODULAR STATE
 let MAIN_BUFFER = [];
@@ -36,30 +36,35 @@ app.use('/log', async (req, res) => {
     res.json("queued")
   } else {
     MAIN_BUFFER.push(log);
-    if (MAIN_BUFFER.length === MAX_BUFFER) {
-      IS_CREATING_BLOB = true;
-      try {
-        const response = await createBlobAndUpload(MAIN_BUFFER, fbRef);
-        if (response) {
-          res.json("1 file uploaded")
-          console.log("1 file uploaded")
-        }
-      } catch (e) {
-        console.log("Error:", e)
-      } finally {
-        // Load queued messages and reset everything for the next file
-        MAIN_BUFFER.length = 0;
-        MAIN_BUFFER.push(...BUFFER_QUEUE);
-        console.log("HERE AT FINALLY, ", MAIN_BUFFER.length)
-        BUFFER_QUEUE.length = 0;
-        IS_CREATING_BLOB = false;
-      }
-    } else {
-      res.json("ok")
-    }
+    res.json("ok")
   }
 
+  // Emergency Flush (If array crosses 105,000 approx. 5-10MB)
+  if (MAIN_BUFFER.length >= 105000) {
+    IS_CREATING_BLOB = true;
+    try {
+      await flushBufferToBlob(MAIN_BUFFER, BUFFER_QUEUE, storage, IS_CREATING_BLOB);
+      console.log("EMERGENCY FLUSH")
+    } catch (e) {
+      throw e;
+    }
+  }
 })
+
+// CRON JOB (for flushing the buffer onto blob every 5 seconds)
+setInterval(async () => {
+  if (MAIN_BUFFER.length === 0 || IS_CREATING_BLOB === true) {
+    // Do not flush if main buffer is empty or if an emergency flushg is triggered
+    console.log('Buffer empty')
+    return;
+  }
+  IS_CREATING_BLOB = true;
+  try {
+    await flushBufferToBlob(MAIN_BUFFER, BUFFER_QUEUE, storage, IS_CREATING_BLOB);
+  } catch (e) {
+    throw e;
+  }
+}, 5000)
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
