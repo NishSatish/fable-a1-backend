@@ -1,7 +1,7 @@
 import {ref} from "firebase/storage";
 import {createBlobAndUpload} from "../util/createBlobAndUpload.js";
 
-export const flushBufferToBlob = async (MAIN_BUFFER, BUFFER_QUEUE, storage, IS_CREATING_BLOB) => {
+export const flushBufferToBlob = async (MAIN_BUFFER, BUFFER_QUEUE, storage) => {
   const fbRef = ref(storage, `blobs/new_${Date.now().toString()}.txt`)
 
   try {
@@ -16,7 +16,5 @@ export const flushBufferToBlob = async (MAIN_BUFFER, BUFFER_QUEUE, storage, IS_C
     MAIN_BUFFER.length = 0;
     MAIN_BUFFER.push(...BUFFER_QUEUE);
     BUFFER_QUEUE.length = 0;
-    IS_CREATING_BLOB = false;
-    console.log("HERE AT FINALLY, ", MAIN_BUFFER.length)
   }
 }

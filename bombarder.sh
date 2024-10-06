@@ -1,12 +1,11 @@
-JSON_PAYLOAD="{\"log\":{\"event_name\":\"login\"}}"
-for (( i = 0; i < 11000; i++ ))
-do
-      curl -s 'http://localhost:3000/log' \
-            -H 'Content-Type: application/json' \
-            -d "$JSON_PAYLOAD" &
-      echo "$i req"
-done
+#!/bin/bash
 
-wait
+# Define variables
+THREADS=8
+CONNECTIONS=2000
+DURATION=15s
+URL="http://localhost:3000/log"
+SCRIPT="wrk-settings.lua"
 
-echo "done"
+# Run the wrk command
+wrk -t$THREADS -c$CONNECTIONS -d$DURATION -s $SCRIPT $URL

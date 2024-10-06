@@ -17,19 +17,18 @@ const storage = getStorage(fb);
 let MAIN_BUFFER = [];
 let BUFFER_QUEUE = [];
 let IS_CREATING_BLOB = false;
-const MAX_BUFFER = 2999
-let c = 0;
+let c = 0; // Request count
 
 // Express
 const app = express();
 app.use(express.json());
 
-app.use('/log', async (req, res) => {
+app.post('/log', async (req, res) => {
   console.log("log no.", ++c);
-  const log = {
+  const log = JSON.stringify({
     ...req.body.log,
     timestamp: Date.now().toString()
-  }
+  })
 
   if (IS_CREATING_BLOB) {
     BUFFER_QUEUE.push(log);
@@ -39,19 +38,21 @@ app.use('/log', async (req, res) => {
     res.json("ok")
   }
 
-  // Emergency Flush (If array crosses 105,000 approx. 5-10MB)
-  if (MAIN_BUFFER.length >= 105000) {
+  // EMERGENCY FLUSH (If array crosses 200000 logs approx. 10MB)
+  if (MAIN_BUFFER.length >= 200000) {
     IS_CREATING_BLOB = true;
     try {
-      await flushBufferToBlob(MAIN_BUFFER, BUFFER_QUEUE, storage, IS_CREATING_BLOB);
-      console.log("EMERGENCY FLUSH")
+      await flushBufferToBlob(MAIN_BUFFER, BUFFER_QUEUE, storage);
     } catch (e) {
       throw e;
+    } finally {
+      console.log("EMERGENCY FLUSH")
+      IS_CREATING_BLOB = false
     }
   }
 })
 
-// CRON JOB (for flushing the buffer onto blob every 5 seconds)
+// CRON JOB (for flushing the buffer onto blob every 10 seconds)
 setInterval(async () => {
   if (MAIN_BUFFER.length === 0 || IS_CREATING_BLOB === true) {
     // Do not flush if main buffer is empty or if an emergency flushg is triggered
@@ -60,11 +61,13 @@ setInterval(async () => {
   }
   IS_CREATING_BLOB = true;
   try {
-    await flushBufferToBlob(MAIN_BUFFER, BUFFER_QUEUE, storage, IS_CREATING_BLOB);
+    await flushBufferToBlob(MAIN_BUFFER, BUFFER_QUEUE, storage);
   } catch (e) {
     throw e;
+  } finally {
+    IS_CREATING_BLOB = false
   }
-}, 5000)
+}, 10000)
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
