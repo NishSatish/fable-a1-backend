@@ -1,8 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { getStorage, ref, uploadString } from 'firebase/storage'
 import express from 'express';
-import dotenv from 'dotenv'
-import {createBlobAndUpload} from "./util/createBlobAndUpload.js";
+import dotenv from 'dotenv';
 import {flushBufferToBlob} from "./cron/flushBufferToBlob.js";
 dotenv.config();
 
@@ -16,7 +15,7 @@ const storage = getStorage(fb);
 // MODULAR STATE
 let MAIN_BUFFER = [];
 let BUFFER_QUEUE = [];
-let IS_CREATING_BLOB = false;
+let IS_CREATING_BLOB = false; // Mutex lock for flush operation
 let c = 0; // Request count
 
 // Express
@@ -30,10 +29,12 @@ app.post('/log', async (req, res) => {
     timestamp: Date.now().toString()
   })
 
+  // If the request comes in during a flush operation, put it in the 2ndary queue
   if (IS_CREATING_BLOB) {
     BUFFER_QUEUE.push(log);
     res.json("queued")
   } else {
+    // Otherwise put it in the main queue
     MAIN_BUFFER.push(log);
     res.json("ok")
   }
