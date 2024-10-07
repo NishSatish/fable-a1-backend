@@ -39,7 +39,7 @@ app.post('/log', async (req, res) => {
   }
 
   // EMERGENCY FLUSH (If array crosses 200000 logs approx. 10MB)
-  if (MAIN_BUFFER.length >= 200000) {
+  if (MAIN_BUFFER.length >= 200000 && IS_CREATING_BLOB === false) {
     IS_CREATING_BLOB = true;
     try {
       await flushBufferToBlob(MAIN_BUFFER, BUFFER_QUEUE, storage);
