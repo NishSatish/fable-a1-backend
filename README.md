@@ -1,4 +1,7 @@
-# Backend A1
+# Log Ingestion Engine
+
+## The point
+To push JS to its limits and testing its reliability at the highest scale. Inspired from SDK-level implementation for pushing logs to analytics services. 
 
 ## Setup Instructions
 * Clone the repository
@@ -19,4 +22,3 @@ The app listens for incoming requests with the log event. It JSON-stringifies it
 * Bash Scripts (for the load test and other tooling)
 * Firebase (blob storage)
 
-A lot of assumptions were presumed in the making and I would be discussing those in person.
